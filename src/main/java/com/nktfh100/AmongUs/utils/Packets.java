@@ -22,9 +22,12 @@ import com.comphenix.protocol.wrappers.EnumWrappers.ItemSlot;
 import com.comphenix.protocol.wrappers.EnumWrappers.NativeGameMode;
 
 public class Packets {
-
 	public static byte toPackedByte(float f) {
 		return (byte) ((int) (f * 256.0F / 360.0F));
+	}
+
+	public static int toPacketRotation(float f) {
+		return (int) (f * 256.0F / 360.0F);
 	}
 
 	public static void sendPacket(Player p, PacketContainer packet) {
@@ -138,7 +141,7 @@ public class Packets {
 		packet.getUUIDs().write(0, uuid);
 		packet.getEntityTypeModifier().write(0, EntityType.PLAYER);
 		packet.getDoubles().write(0, loc.getX()).write(1, loc.getY()).write(2, loc.getZ());
-		packet.getBytes().write(0, toPackedByte(loc.getYaw())).write(1, toPackedByte(loc.getPitch()));
+		packet.getIntegers().write(5, toPacketRotation(loc.getYaw())).write(4, toPacketRotation(loc.getPitch()));
 		return packet;
 	}
 
@@ -181,7 +184,7 @@ public class Packets {
 
 	public static PacketContainer DESTROY_ENTITY(int entityId) {
 		PacketContainer packet = new PacketContainer(PacketType.Play.Server.ENTITY_DESTROY);
-		packet.getIntLists().write(0, Collections.singletonList(entityId));
+		packet.getIntegerArrays().write(0, new int[]{entityId});
 		return packet;
 	}
 
@@ -228,8 +231,8 @@ public class Packets {
 		packet.getDoubles().write(0, loc.getX());
 		packet.getDoubles().write(1, loc.getY()); // location
 		packet.getDoubles().write(2, loc.getZ());
-		packet.getBytes().write(0, (byte) 0); // yaw & pitch ?
-		packet.getBytes().write(1, (byte) 0);
+		packet.getIntegers().write(4, 0); // yaw & pitch ?
+		packet.getIntegers().write(5, 0);
 
 		return packet;
 	}

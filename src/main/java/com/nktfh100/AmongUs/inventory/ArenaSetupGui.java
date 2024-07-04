@@ -529,11 +529,11 @@ public class ArenaSetupGui {
 				player.closeInventory();
 				arena.endGame(false, GameEndReasons.RELOAD, GameEndWinners.NOBODY);
 				Location loc = player.getLocation();
-				String spawnLoc = loc.getWorld().getName() + "," + (loc.getBlockX() + 0.5) + "," + loc.getBlockY() + ","
+				String spawnLoc = loc.getWorld().getName() + "," + (loc.getBlockX() + 0.5) + "," + loc.getY() + ","
 						+ (loc.getBlockZ() + 0.5) + "," + loc.getYaw() + "," + loc.getPitch();
 				List<String> allSpawns = arena.getArenaConfig().getStringList("spawnpoints");
 				allSpawns.add(spawnLoc);
-				arena.addPlayerSpawn(new Location(loc.getWorld(), loc.getBlockX() + 0.5, loc.getBlockY(),
+				arena.addPlayerSpawn(new Location(loc.getWorld(), loc.getBlockX() + 0.5, loc.getY(),
 						loc.getBlockZ() + 0.5, loc.getYaw(), loc.getPitch()));
 				arena.getArenaConfig().set("spawnpoints", allSpawns);
 				arena.saveConfig();

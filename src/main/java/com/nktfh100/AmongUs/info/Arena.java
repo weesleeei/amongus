@@ -77,7 +77,7 @@ import com.nktfh100.AmongUs.utils.Utils;
 public class Arena {
 	private File arenaFile;
 	private FileConfiguration arenaConfig;
-	private String name;
+	private final String name;
 	private String displayName;
 	private Integer minPlayers;
 	private Integer maxPlayers;
@@ -668,16 +668,14 @@ public class Arena {
 				AUArenaPlayerJoin ev = new AUArenaPlayerJoin(this, player);
 				Bukkit.getPluginManager().callEvent(ev);
 
-				if (ev.isCancelled()) {
-					return;
-				}
+				if (ev.isCancelled()) return;
 
-				if (this.playersSpawns.size() == 0) {
+				if (this.playersSpawns.isEmpty()) {
 					Logger.log(Level.SEVERE, "Arena " + this.getDisplayName() + " has no spawns!");
 					return;
 				}
 
-				if (this.colors_.size() == 0) {
+				if (this.colors_.isEmpty()) {
 					Logger.log(Level.SEVERE, "There are not enough colors!");
 					Logger.log(Level.SEVERE,
 							"Number of colors: " + Main.getConfigManager().getAllColors().size() + ", Number of players in '" + this.getDisplayName() + "': " + this.getMaxPlayers());
@@ -1420,11 +1418,8 @@ public class Arena {
 
 				PacketContainer packet = Packets.UPDATE_DISPLAY_NAME(player.getUniqueId(), player.getName(), pInfo.getCustomName());
 				for (PlayerInfo pInfo1 : this.getPlayersInfo()) {
-					if (pInfo != pInfo1) {
-						Packets.sendPacket(pInfo1.getPlayer(), packet);
-					}
+					Packets.sendPacket(pInfo1.getPlayer(), packet);
 				}
-				Packets.sendPacket(player, packet);
 				this.vitalsManager.addPlayer(pInfo);
 				si++;
 			}

@@ -432,7 +432,7 @@ public class ArenaManager {
 				Logger.log(Level.INFO,"World: " + world + " doesn't exists!");
 				continue;
 			}
-			Location loc = new Location(world, Double.valueOf(locs[1]), Double.valueOf(locs[2]),
+			Location loc = new Location(world, Double.valueOf(locs[1]), Double.valueOf(locs[2]) + 0.25,
 					Double.valueOf(locs[3]), Double.valueOf(locs[4]).floatValue(),
 					Double.valueOf(locs[5]).floatValue());
 			created.addPlayerSpawn(loc);

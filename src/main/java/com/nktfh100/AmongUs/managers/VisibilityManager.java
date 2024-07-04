@@ -123,46 +123,45 @@ public class VisibilityManager {
 			// players
 
 			for (PlayerInfo pInfo1 : this.arena.getPlayersInfo()) {
-				if(pInfo1 == null) {
-					continue;
-				}
-				Player player1 = pInfo1.getPlayer();
-				if (!pInfo1.isGhost() && player1 != player) {
-					if (!pInfo1.getIsInVent() && !pInfo.getIsInCameras()) {
-						Location player1Loc = player1.getLocation();
-						if (pInfo1.getIsInCameras()) {
-							player1Loc = pInfo1.getPlayerCamLocTemp();
-						}
-						// if player sees player1
-						if (this.arena.getEnableReducedVision()) {
-							if (Utils.isInsideCircle(player.getLocation(), (double) pInfo.getVision(), player1Loc) == 2) { // if player1 goes outside view range
-								if (!pInfo.getPlayersHidden().contains(player1)) {
-									this.hidePlayer(pInfo, pInfo1, true);
-								}
-							} else if (pInfo.getPlayersHidden().contains(player1)) { // if player1 goes inside view range
-								this.showPlayer(pInfo, pInfo1, true);
-							}
-						}
-					}
+				if(pInfo1 == null) continue;
 
-					// if player1 sees player
-					if (!pInfo.getIsInVent() && !pInfo1.getIsInCameras()) {
-						Location playerLoc = player.getLocation();
-						if (pInfo.getIsInCameras()) {
-							playerLoc = pInfo.getPlayerCamLocTemp();
-						}
-						if (this.arena.getEnableReducedVision()) {
-							if (Utils.isInsideCircle(player1.getLocation(), (double) pInfo1.getVision(), playerLoc) == 2) {
-								if (!pInfo1.getPlayersHidden().contains(player)) {
-									this.hidePlayer(pInfo1, pInfo, true);
-								}
-							} else if (pInfo1.getPlayersHidden().contains(player)) {
-								this.showPlayer(pInfo1, pInfo, true);
-							}
-						}
-					} else if (!pInfo.getIsInVent() && pInfo1.getIsInCameras() && pInfo1.getPlayersHidden().contains(player) && !pInfo.isGhost()) {
-						this.showPlayer(pInfo1, pInfo, true);
+				Player player1 = pInfo1.getPlayer();
+				if (pInfo1.isGhost() || player1 == player) continue;
+
+				if (!pInfo1.getIsInVent() && !pInfo.getIsInCameras()) {
+					Location player1Loc = player1.getLocation();
+					if (pInfo1.getIsInCameras()) {
+						player1Loc = pInfo1.getPlayerCamLocTemp();
 					}
+					// if player sees player1
+					if (this.arena.getEnableReducedVision()) {
+						if (Utils.isInsideCircle(player.getLocation(), (double) pInfo.getVision(), player1Loc) == 2) { // if player1 goes outside view range
+							if (!pInfo.getPlayersHidden().contains(player1)) {
+								this.hidePlayer(pInfo, pInfo1, true);
+							}
+						} else if (pInfo.getPlayersHidden().contains(player1)) { // if player1 goes inside view range
+							this.showPlayer(pInfo, pInfo1, true);
+						}
+					}
+				}
+
+				// if player1 sees player
+				if (!pInfo.getIsInVent() && !pInfo1.getIsInCameras()) {
+					Location playerLoc = player.getLocation();
+					if (pInfo.getIsInCameras()) {
+						playerLoc = pInfo.getPlayerCamLocTemp();
+					}
+					if (this.arena.getEnableReducedVision()) {
+						if (Utils.isInsideCircle(player1.getLocation(), (double) pInfo1.getVision(), playerLoc) == 2) {
+							if (!pInfo1.getPlayersHidden().contains(player)) {
+								this.hidePlayer(pInfo1, pInfo, true);
+							}
+						} else if (pInfo1.getPlayersHidden().contains(player)) {
+							this.showPlayer(pInfo1, pInfo, true);
+						}
+					}
+				} else if (!pInfo.getIsInVent() && pInfo1.getIsInCameras() && pInfo1.getPlayersHidden().contains(player) && !pInfo.isGhost()) {
+					this.showPlayer(pInfo1, pInfo, true);
 				}
 			}
 		}
@@ -185,13 +184,20 @@ public class VisibilityManager {
 			}
 
 			Player playerToShow = pInfoToShow.getPlayer();
-			PacketContainer spawnPacket = new PacketContainer(PacketType.Play.Server.SPAWN_ENTITY);
+			Location loc = playerToShow.getLocation();
+			PacketContainer spawnPacket;
+			if (Main.getVersion()[0] > 20 || (Main.getVersion()[0] == 20 && Main.getVersion()[1] >= 2)) {
+				spawnPacket = new PacketContainer(PacketType.Play.Server.SPAWN_ENTITY);
+				spawnPacket.getEntityTypeModifier().write(0, EntityType.PLAYER);
+				spawnPacket.getIntegers().write(5, Packets.toPacketRotation(loc.getYaw())).write(4, Packets.toPacketRotation(loc.getPitch()));
+
+			} else {
+				spawnPacket = new PacketContainer(PacketType.Play.Server.NAMED_ENTITY_SPAWN);
+				spawnPacket.getBytes().write(0, Packets.toPackedByte(loc.getYaw())).write(1, Packets.toPackedByte(loc.getPitch()));
+			}
 			spawnPacket.getIntegers().write(0, playerToShow.getEntityId());
 			spawnPacket.getUUIDs().write(0, playerToShow.getUniqueId());
-			spawnPacket.getEntityTypeModifier().write(0, EntityType.PLAYER);
-			Location loc = playerToShow.getLocation();
 			spawnPacket.getDoubles().write(0, loc.getX()).write(1, loc.getY()).write(2, loc.getZ());
-			spawnPacket.getBytes().write(0, Packets.toPackedByte(loc.getYaw())).write(1, Packets.toPackedByte(loc.getPitch()));
 			Packets.sendPacket(pInfoToShowTo.getPlayer(), spawnPacket);
 
 			// metadata packet

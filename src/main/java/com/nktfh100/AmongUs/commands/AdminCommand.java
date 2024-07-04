@@ -78,6 +78,19 @@ public class AdminCommand implements CommandExecutor {
 
 			/* ---------------------------------------------------- */
 
+			else if (args[0].equalsIgnoreCase("test") && sender instanceof Player player && (sender.hasPermission("amongus.admin.test"))) {
+				PlayerInfo pInfo = Main.getPlayersManager().getPlayerInfo(player);
+				if (!pInfo.getIsIngame()) {
+					player.sendMessage(ChatColor.RED + "You are not in an arena!");
+					return true;
+				}
+				pInfo.getArena()._isTesting = true;
+				pInfo.getArena().testingPlayer = player;
+				player.sendMessage(ChatColor.GREEN + "Enabled testing mode!");
+			}
+
+			/* ---------------------------------------------------- */
+
 			else if (args[0].equalsIgnoreCase("setup") && sender instanceof Player && (sender.hasPermission("amongus.admin.setup") || sender.hasPermission("amongus.admin"))) {
 				if (args.length == 1) {
 					ArenaSetupGui.openArenaSetupSelector((Player) sender);

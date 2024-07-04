@@ -36,16 +36,16 @@ public class CosmeticsManager {
 
 		YamlConfiguration config = YamlConfiguration.loadConfiguration(configFIle);
 		try {
-			this.cosmetics = new HashMap<CosmeticType, HashMap<String, CosmeticItem>>();
-			for (CosmeticType cosmetic_ : CosmeticType.values()) {
-				String type = cosmetic_.getName();
-				ConfigurationSection typeSec = config.getConfigurationSection(type);
+			this.cosmetics = new HashMap<>();
+			for (CosmeticType cosmetic : CosmeticType.values()) {
+				String cosmeticName = cosmetic.getName();
+				ConfigurationSection typeSec = config.getConfigurationSection(cosmeticName);
 				if (typeSec == null) {
 					continue;
 				}
-				this.cosmetics.put(CosmeticType.valueOf(type.toUpperCase()), new HashMap<String, CosmeticItem>());
-				this.defaultCosmetics.put(CosmeticType.valueOf(type.toUpperCase()), config.getString("default_" + type));
-				this.cosmeticsOrder.put(CosmeticType.valueOf(type.toUpperCase()), new ArrayList<CosmeticItem>());
+				this.cosmetics.put(cosmetic, new HashMap<>());
+				this.defaultCosmetics.put(cosmetic, config.getString("default_" + cosmeticName));
+				this.cosmeticsOrder.put(cosmetic, new ArrayList<>());
 				for (String itemKey : typeSec.getKeys(false)) {
 					ConfigurationSection itemSec = typeSec.getConfigurationSection(itemKey);
 					Material mat = Material.getMaterial(itemSec.getString("material", "BARRIER"));
@@ -58,8 +58,8 @@ public class CosmeticsManager {
 					int price = itemSec.getInt("price", 0);
 					String permission = itemSec.getString("permission", "");
 					CosmeticItem cosmeticItem = new CosmeticItem(itemKey, mat, displayName, name, slot, lore, lore2, lore3, price, permission);
-					this.cosmetics.get(CosmeticType.valueOf(type.toUpperCase())).put(itemKey, cosmeticItem);
-					this.cosmeticsOrder.get(CosmeticType.valueOf(type.toUpperCase())).add(cosmeticItem);
+					this.cosmetics.get(cosmetic).put(itemKey, cosmeticItem);
+					this.cosmeticsOrder.get(cosmetic).add(cosmeticItem);
 				}
 			}
 

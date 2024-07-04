@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 group 'spigot.gradle.project'
@@ -24,12 +25,18 @@ dependencies {
     compileOnly 'org.spigotmc:spigot-api:1.19.4-R0.1-SNAPSHOT'
     compileOnly group: "com.comphenix.protocol", name: "ProtocolLib", version: "5.2.0-SNAPSHOT"
     compileOnly 'me.filoghost.holographicdisplays:holographicdisplays-api:3.0.0'
-    compileOnly 'org.black_ixx:playerpoints:3.2.6'
-    compileOnly 'me.clip:placeholderapi:2.11.5'
+    compileOnly 'org.black_ixx:playerpoints:3.2.7'
+    compileOnly 'me.clip:placeholderapi:2.11.6'
     compileOnly 'com.mojang:authlib:2.1.28'
-    compileOnly 'com.github.decentsoftware-eu:decentholograms:2.8.6'
-    compileOnly 'me.neznamy:tab-api:4.0.2'
+    compileOnly 'com.github.decentsoftware-eu:decentholograms:2.8.8'
+    compileOnly 'com.github.NEZNAMY:TAB-API:4.1.6'
+    implementation 'commons-io:commons-io:2.16.1'
 
     compileOnly files('libs/VentureChat.jar') // 3.7.1
     //compileOnly files('libs/CMI-API.jar') // 9.0.0.0
+}
+
+shadowJar {
+    relocate 'org.apache.commons.io', 'com.nktfh100.AmongUs.commons.io'
+    minimize()
 }

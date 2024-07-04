@@ -441,7 +441,7 @@ public class Utils {
 	}
 
 	public static boolean hasChangedBlockCoordinates(Location fromLoc, Location toLoc) {
-		return !(fromLoc.getWorld().equals(toLoc.getWorld()) && fromLoc.getBlockX() == toLoc.getBlockX() && fromLoc.getBlockZ() == toLoc.getBlockZ());
+		return !Objects.equals(fromLoc.getWorld(), toLoc.getWorld()) || fromLoc.getBlockX() != toLoc.getBlockX() || fromLoc.getBlockZ() != toLoc.getBlockZ();
 	}
 
 	// 0 = inside
