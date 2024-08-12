@@ -459,9 +459,13 @@ public class PlayerInfo {
 	}
 
 	public void updateScoreBoard() {
-		if (this.board == null || this.board.getObjective(DisplaySlot.SIDEBAR) == null) {
+		if (this.board == null) {
 			this.board = Bukkit.getScoreboardManager().getNewScoreboard();
-			Objective objective = this.board.registerNewObjective("sidebar", "dummy", "Scoreboard");
+		}
+
+		Objective objective = this.board.getObjective(DisplaySlot.SIDEBAR);
+		if (objective == null) {
+			objective = this.board.registerNewObjective("sidebar", "dummy", "Scoreboard");
 			objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 		}
 
@@ -479,48 +483,46 @@ public class PlayerInfo {
 			if (score <= 0) break;
 
 			if (line.contains("%tasks%")) {
-				if (!isCommsDisabled()) {
+				if (this.getArena() != null && !this.getArena().getSabotageManager().isSabotageActive(SabotageType.COMMUNICATIONS)) {
 					for (TaskPlayer tp : this.getArena().getTasksManager().getTasksForPlayer(this.getPlayer())) {
 						if (score <= 0) break;
 						String line_ = messagesManager.getScoreboardTaskLine(this.getArena(), tp);
-						updateTeamLine(score, line_, isLegacy, maxLineLength);
+						updateTeamLine(score, line_, isLegacy, maxLineLength, objective);
 						teamsToRemove.remove(this.board.getTeam("team" + score));
 						score--;
 					}
 				} else {
 					String line_ = ChatColor.RED + "" + ChatColor.BOLD + Main.getMessagesManager().getSabotageTitle(SabotageType.COMMUNICATIONS);
-					updateTeamLine(score, line_, isLegacy, maxLineLength);
+					updateTeamLine(score, line_, isLegacy, maxLineLength, objective);
 					teamsToRemove.remove(this.board.getTeam("team" + score));
 					score--;
 				}
 			} else {
 				String line_ = messagesManager.getScoreboardLine(this.getScoreBoardKey(), lines.size(), this);
-				updateTeamLine(score, line_, isLegacy, maxLineLength);
+				updateTeamLine(score, line_, isLegacy, maxLineLength, objective);
 				teamsToRemove.remove(this.board.getTeam("team" + score));
 				score--;
 			}
 			lines.add(line);
 		}
 
-		// Remova as equipes que não foram atualizadas
+		// Remove teams that were not updated
 		for (Team team : teamsToRemove) {
 			if (team != null && team.getName().startsWith("team")) {
-				try {
-					for (String entry : new ArrayList<>(team.getEntries())) {
-						team.removeEntry(entry);
-						this.board.resetScores(entry);
-					}
-					team.unregister();
-				} catch (IllegalStateException e) {
-					// A equipe já foi desregistrada, ignore
+				for (String entry : new ArrayList<>(team.getEntries())) {
+					team.removeEntry(entry);
+					this.board.resetScores(entry);
 				}
+				team.unregister();
 			}
 		}
-		this.getPlayer().setScoreboard(this.board);
+
 		if (!this.getScoreBoardKey().equals(this.activeKey)) {
 			this.activeKey = this.getScoreBoardKey();
 			this.updateScoreBoard();
 		}
+
+		this.getPlayer().setScoreboard(this.board);
 	}
 
 	public void resetScoreboard() {
@@ -563,30 +565,31 @@ public class PlayerInfo {
 		return false;
 	}
 
-	private void updateTeamLine(int score, String line, boolean isLegacy, int maxLineLength) {
+	private void updateTeamLine(int score, String line, boolean isLegacy, int maxLineLength, Objective objective) {
+		if (objective == null) return;
+
 		Team team = this.board.getTeam("team" + score);
 		if (team == null) {
 			team = this.board.registerNewTeam("team" + score);
 		}
-		String entry = getUniqueColorCode(score);
 
-		if (isLegacy) {
-			if (line.length() > 16) {
-				String prefix = line.substring(0, 16);
-				String suffix = ChatColor.getLastColors(prefix) + line.substring(16);
-				team.setPrefix(prefix);
-				team.setSuffix(suffix.length() > 16 ? suffix.substring(0, 16) : suffix);
-			} else {
-				team.setPrefix(line);
-				team.setSuffix("");
+		String prefix = line;
+		String suffix = "";
+		if (line.length() > maxLineLength) {
+			prefix = line.substring(0, maxLineLength);
+			if (!isLegacy) {
+				suffix = line.substring(maxLineLength);
 			}
-		} else {
-			team.setPrefix(line.length() > maxLineLength ? line.substring(0, maxLineLength) : line);
-			team.setSuffix("");
 		}
-
-		team.addEntry(entry);
-		this.objective.getScore(entry).setScore(score);
+		team.setPrefix(prefix);
+		if (!isLegacy) {
+			team.setSuffix(suffix);
+		}
+		String entry = ChatColor.values()[score].toString();
+		if (!team.hasEntry(entry)) {
+			team.addEntry(entry);
+		}
+		objective.getScore(entry).setScore(score);
 	}
 
 	private String getUniqueColorCode(int score) {

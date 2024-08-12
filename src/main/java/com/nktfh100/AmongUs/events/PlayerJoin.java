@@ -16,6 +16,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 public class PlayerJoin implements Listener {
     private final PlayersManager playersManager = Main.getPlayersManager();
+
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent ev) {
         Player player = ev.getPlayer();
@@ -29,7 +30,15 @@ public class PlayerJoin implements Listener {
         }
         playerInfo.resetScoreboard();
         playerInfo.updatePlayerVisibility();
-        playerInfo.updateScoreBoard();
+
+        // Adicionando atraso antes de chamar updateScoreBoard
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                playerInfo.updateScoreBoard();
+            }
+        }.runTaskLater(Main.getPlugin(), 5L);
+
         if (Main.getConfigManager().getMysql_enabled()) {
             playersManager.getPlayerInfo(player).getStatsManager().mysql_registerPlayer(true);
         } else {

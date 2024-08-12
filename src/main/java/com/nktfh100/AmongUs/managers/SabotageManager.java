@@ -522,4 +522,8 @@ public class SabotageManager {
 	public BossBar getSabotageCooldownBossBar(Player player) {
 		return this.sabotageCooldownBossBar.get(player.getUniqueId().toString());
 	}
+
+	public boolean isSabotageActive(SabotageType sabotageType) {
+		return this.activeSabotage != null && this.activeSabotage.getType() == sabotageType;
+	}
 }
