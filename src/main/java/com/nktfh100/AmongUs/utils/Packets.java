@@ -136,15 +136,47 @@ public class Packets {
 		return packet;
 	}
 
-	public static PacketContainer SPAWN_PLAYER(Location loc, int entityId, UUID uuid) {
-		PacketContainer packet = new PacketContainer(PacketType.Play.Server.SPAWN_ENTITY);
-		packet.getIntegers().write(0, entityId);
-		packet.getUUIDs().write(0, uuid);
-		packet.getEntityTypeModifier().write(0, EntityType.PLAYER);
-		packet.getDoubles().write(0, loc.getX()).write(1, loc.getY()).write(2, loc.getZ());
-		packet.getIntegers().write(5, toPacketRotation(loc.getYaw())).write(4, toPacketRotation(loc.getPitch()));
+	public static PacketContainer SPAWN_PLAYER(Player player, int entityId, UUID uuid, Location location) {
+		PacketContainer packet = new PacketContainer(PacketType.Play.Server.NAMED_ENTITY_SPAWN);
+
+		try {
+			packet.getIntegers().write(0, entityId);
+		} catch (Exception e) {
+			// Ignore if the field doesn't exist
+		}
+
+		try {
+			packet.getUUIDs().write(0, uuid);
+		} catch (Exception e) {
+			// Ignore if the field doesn't exist
+		}
+
+		try {
+			packet.getDoubles()
+					.write(0, location.getX())
+					.write(1, location.getY())
+					.write(2, location.getZ());
+		} catch (Exception e) {
+			// Ignore if the fields don't exist
+		}
+
+		try {
+			packet.getBytes()
+					.write(0, (byte) (location.getYaw() * 256.0F / 360.0F))
+					.write(1, (byte) (location.getPitch() * 256.0F / 360.0F));
+		} catch (Exception e) {
+			// Ignore if the fields don't exist
+		}
+
+		try {
+			packet.getDataWatcherModifier().write(0, new WrappedDataWatcher());
+		} catch (Exception e) {
+			// Ignore if the field doesn't exist
+		}
+
 		return packet;
 	}
+
 
 	public static PacketContainer ENTITY_HEAD_ROTATION(int entityId, Location loc) {
 		PacketContainer packet = new PacketContainer(PacketType.Play.Server.ENTITY_HEAD_ROTATION);
@@ -192,10 +224,7 @@ public class Packets {
 		// Garantir que o índice 0 está dentro dos limites
 		if (size > 0) {
 			packet.getIntegerArrays().write(0, new int[]{entityId});
-		} else {
-			Logger.log(Level.WARNING, "Field index 0 is out of bounds for length " + size);
 		}
-
 		return packet;
 	}
 

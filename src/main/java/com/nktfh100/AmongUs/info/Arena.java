@@ -199,6 +199,31 @@ public class Arena {
 		this.bossBar.setProgress(0);
 	}
 
+	public void debugPlayerVisibility() {
+		for (PlayerInfo playerInfo : this.getPlayersInfo()) {
+			Player player = playerInfo.getPlayer();
+			player.sendMessage("Players you can see:");
+			for (PlayerInfo otherPlayerInfo : this.getPlayersInfo()) {
+				if (playerInfo.equals(otherPlayerInfo)) continue;
+				Player otherPlayer = otherPlayerInfo.getPlayer();
+				boolean canSee = player.canSee(otherPlayer);
+				player.sendMessage("- " + otherPlayer.getName() + ": " + (canSee ? "Visible" : "Invisible"));
+			}
+		}
+	}
+	public void updatePlayerVisibility() {
+		for (PlayerInfo playerInfo : this.getPlayersInfo()) {
+			Player player = playerInfo.getPlayer();
+			for (PlayerInfo otherPlayerInfo : this.getPlayersInfo()) {
+				if (playerInfo.equals(otherPlayerInfo)) continue;
+
+				Player otherPlayer = otherPlayerInfo.getPlayer();
+				player.showPlayer(Main.getPlugin(), otherPlayer);
+				otherPlayer.showPlayer(Main.getPlugin(), player);
+			}
+		}
+	}
+
 	public void giveGameInventory(PlayerInfo pInfo) {
 		pInfo.getPlayer().getInventory().clear();
 		if (!pInfo.getIsInVent() && !pInfo.getIsInCameras()) {
@@ -1226,7 +1251,7 @@ public class Arena {
 		if (this.gameState == GameState.STARTING) {
 			return;
 		}
-
+		updatePlayerVisibility();
 		this.setGameState(GameState.STARTING);
 		long startTimeSec = System.currentTimeMillis() / 1000;
 
@@ -1263,6 +1288,7 @@ public class Arena {
 					arena_.setGameTimerActive(gameTimer_);
 					if (gameTimer_ <= 0) {
 						arena_.startGame();
+						updatePlayerVisibility();
 						this.cancel();
 						return;
 					}
@@ -1276,6 +1302,8 @@ public class Arena {
 	public Player testingPlayer = null;
 
 	public void startGame() {
+		Bukkit.getScheduler().runTaskTimer(Main.getPlugin(), this::updatePlayerVisibility, 20L, 20L);
+		updatePlayerVisibility();
 		if (this.gameState != GameState.RUNNING && this.gameState != GameState.FINISHING) {
 			this.setGameState(GameState.RUNNING);
 			AUArenaStart ev = new AUArenaStart(this);
@@ -1284,7 +1312,8 @@ public class Arena {
 			if (Main.getConfigManager().getBungeecord() && !Main.getConfigManager().getBungeecordIsLobby()) {
 				Main.getArenaManager().sendBungeUpdate(this.getName(), GameState.RUNNING, this.ingamePlayers.size(), this.maxPlayers);
 			}
-
+			updatePlayerVisibility();
+			Bukkit.getScheduler().runTaskTimer(Main.getPlugin(), this::updatePlayerVisibility, 20L, 100L);
 			this.impostersAlive.clear();
 			this.gameImposters.clear();
 			this.scanQueue.clear();
@@ -1413,7 +1442,8 @@ public class Arena {
 				ItemInfo useItem = Main.getItemsManager().getItem("use").getItem();
 				pInfo.getPlayer().getInventory().setItem(useItem.getSlot(), useItem.getItem());
 				this.getVisibilityManager().playerMoved(pInfo, this.playersSpawns.get(si));
-
+				updatePlayerVisibility();
+				Bukkit.getScheduler().runTaskTimer(Main.getPlugin(), this::updatePlayerVisibility, 20L, 100L);
 				pInfo.setFakePlayer(new FakePlayer(this, pInfo));
 
 				PacketContainer packet = Packets.UPDATE_DISPLAY_NAME(player.getUniqueId(), player.getName(), pInfo.getCustomName());
@@ -1731,6 +1761,7 @@ public class Arena {
 			}
 			this.getVisibilityManager().resetPlayersHidden(pInfo);
 			si++;
+			updatePlayerVisibility();
 		}
 		Arena arena = this;
 
@@ -2120,14 +2151,14 @@ public class Arena {
 
 	public Integer getTasksNum(TaskLength tl) {
 		switch (tl) {
-		case COMMON:
-			return this.getCommonTasks();
-		case SHORT:
-			return this.getShortTasks();
-		case LONG:
-			return this.getLongTasks();
-		default:
-			throw new IllegalArgumentException("Unexpected value: " + tl);
+			case COMMON:
+				return this.getCommonTasks();
+			case SHORT:
+				return this.getShortTasks();
+			case LONG:
+				return this.getLongTasks();
+			default:
+				throw new IllegalArgumentException("Unexpected value: " + tl);
 		}
 	}
 
@@ -2273,7 +2304,7 @@ public class Arena {
 	public void saveConfig() {
 		try {
 			if(this.arenaFile.exists()) {
-				this.arenaConfig.save(this.arenaFile);				
+				this.arenaConfig.save(this.arenaFile);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -2917,4 +2948,7 @@ public class Arena {
 		this.shapeshifterChance = shapeshifterChance;
 	}
 
+	public boolean isSabotageActive(SabotageType sabotageType) {
+		return this.getSabotageManager().getActiveSabotage() != null && this.getSabotageManager().getActiveSabotage().getType() == sabotageType;
+	}
 }

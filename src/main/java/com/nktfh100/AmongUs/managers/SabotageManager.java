@@ -344,25 +344,25 @@ public class SabotageManager {
 		Main.getSoundsManager().playSound("sabotageInvOpen", player, player.getLocation());
 
 		switch (this.activeSabotage.getType()) {
-		case LIGHTS:
-			if (this.saboInvHolder == null) {
-				this.saboInvHolder = new SabotageLightsInv(this.getActiveSabotage(), player);
-			}
+			case LIGHTS:
+				if (this.saboInvHolder == null) {
+					this.saboInvHolder = new SabotageLightsInv(this.getActiveSabotage(), player);
+				}
 
-			player.openInventory(this.saboInvHolder.getInventory());
-			return;
-		case COMMUNICATIONS:
-			player.openInventory(new SabotageCommsInv(this.getActiveSabotage(), player).getInventory());
-			return;
-		case REACTOR_MELTDOWN:
-			player.openInventory(new SabotageReactorInv(this.getActiveSabotage(), clickedTaskId, player).getInventory());
-			return;
-		case OXYGEN:
-			player.openInventory(new SabotageOxygenInv(this.getActiveSabotage(), clickedTaskId, this.oxygenCode, player).getInventory());
-			return;
-		default:
-			this.activeSabotage.taskDone(player);
-			break;
+				player.openInventory(this.saboInvHolder.getInventory());
+				return;
+			case COMMUNICATIONS:
+				player.openInventory(new SabotageCommsInv(this.getActiveSabotage(), player).getInventory());
+				return;
+			case REACTOR_MELTDOWN:
+				player.openInventory(new SabotageReactorInv(this.getActiveSabotage(), clickedTaskId, player).getInventory());
+				return;
+			case OXYGEN:
+				player.openInventory(new SabotageOxygenInv(this.getActiveSabotage(), clickedTaskId, this.oxygenCode, player).getInventory());
+				return;
+			default:
+				this.activeSabotage.taskDone(player);
+				break;
 		}
 	}
 
@@ -411,18 +411,18 @@ public class SabotageManager {
 	public ItemInfoContainer getSabotageItemInfo(SabotageType st) {
 		String key = "sabotage_";
 		switch (st) {
-		case OXYGEN:
-			key += "oxygen";
-			break;
-		case REACTOR_MELTDOWN:
-			key += "reactor";
-			break;
-		case COMMUNICATIONS:
-			key += "comms";
-			break;
-		default:
-			key += "lights";
-			break;
+			case OXYGEN:
+				key += "oxygen";
+				break;
+			case REACTOR_MELTDOWN:
+				key += "reactor";
+				break;
+			case COMMUNICATIONS:
+				key += "comms";
+				break;
+			default:
+				key += "lights";
+				break;
 		}
 
 		return Main.getItemsManager().getItem(key);
@@ -521,9 +521,5 @@ public class SabotageManager {
 
 	public BossBar getSabotageCooldownBossBar(Player player) {
 		return this.sabotageCooldownBossBar.get(player.getUniqueId().toString());
-	}
-
-	public boolean isSabotageActive(SabotageType sabotageType) {
-		return this.activeSabotage != null && this.activeSabotage.getType() == sabotageType;
 	}
 }

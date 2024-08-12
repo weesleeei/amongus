@@ -263,10 +263,12 @@ public class MessagesManager {
 	public String getScoreboardLine(String team, int i, PlayerInfo pInfo) {
 		String line = this.scoreboardLines.get(team).get(i);
 		line = line.replaceAll("%emptyline%", Utils.getRandomColors());
+		if (line.length() > 64) {
+			line = line.substring(0, 64);
+		}
 		if (pInfo != null) {
 			if (pInfo.getArena() != null) {
 				line = line.replaceAll("%arena%", pInfo.getArena().getDisplayName());
-
 				line = line.replaceAll("%player%", pInfo.getPlayer().getName());
 				line = line.replaceAll("%player_color%", pInfo.getColor().getChatColor() + "");
 				line = line.replaceAll("%player_color_name%", pInfo.getColor().toString().toLowerCase() + "");

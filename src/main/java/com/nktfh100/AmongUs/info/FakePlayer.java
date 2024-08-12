@@ -1,8 +1,11 @@
 package com.nktfh100.AmongUs.info;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.UUID;
 
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.events.PacketContainer;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -59,7 +62,13 @@ public class FakePlayer {
 		}
 		Packets.sendPacket(player, Packets.ADD_PLAYER(player, this.uuid, this.name, this.customName, this.textureValue, this.textureSignature, true));
 
-		Packets.sendPacket(player, Packets.SPAWN_PLAYER(loc, this.entityId, this.uuid));
+		PacketContainer spawnPacket = Packets.SPAWN_PLAYER(player, this.entityId, this.uuid, loc);
+		try {
+			ProtocolLibrary.getProtocolManager().sendServerPacket(player, spawnPacket);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		Packets.sendPacket(player, Packets.METADATA_SKIN(this.entityId, pInfo.getPlayer(), false));
 		if (!dead) {
 			Packets.sendPacket(player, Packets.ENTITY_HEAD_ROTATION(this.entityId, loc));
@@ -80,6 +89,8 @@ public class FakePlayer {
 			}
 		}.runTaskLater(Main.getPlugin(), 2L);
 	}
+
+
 
 	public void hidePlayerFrom(Player player, Boolean register) {
 		if (this.playerShownTo.contains(player) || !register) {

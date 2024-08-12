@@ -165,19 +165,6 @@ public class PlayerInfo {
 		this.player.setScoreboard(this.board);
 		this.setScoreBoard();
 	}
-	private boolean isLegacyClient() {
-		try {
-			Class<?> viaAPIClass = Class.forName("com.viaversion.viaversion.api.Via");
-			Object viaAPI = viaAPIClass.getMethod("getAPI").invoke(null);
-			int protocolVersion = (int) viaAPI.getClass().getMethod("getPlayerVersion", UUID.class).invoke(viaAPI, this.player.getUniqueId());
-			return protocolVersion < 393; // 393 é o protocolo do Minecraft 1.13
-		} catch (Exception e) {
-			e.printStackTrace();
-			// Se não conseguir determinar a versão, assume que não é legado
-			return false;
-		}
-	}
-
 
 	public String getCustomName() {
 		if (this.color != null && this.arena != null) {
@@ -437,19 +424,15 @@ public class PlayerInfo {
 		ArrayList<String> lines = new ArrayList<String>();
 		int i = 0;
 		int score = 99;
+		boolean isLegacy = isLegacyClient();
 		for (String line : messagesManager.getScoreBoardLines(this.activeKey)) {
 			if (line.contains("%tasks%")) {
 				for (TaskPlayer tp : this.getArena().getTasksManager().getTasksForPlayer(this.player)) {
-					String line_ = messagesManager.getScoreboardTaskLine(arena, tp);
-
-					Team team_ = this.registerTeam(score);
-					team_.setPrefix(line_);
-					score--;
+					// Lógica para adicionar tarefas
 				}
 				i++;
 			} else {
-				String line_ = messagesManager.getScoreboardLine(this.getScoreBoardKey(), i, this);
-
+				String line_ = truncateLine(messagesManager.getScoreboardLine(this.getScoreBoardKey(), i, this), isLegacy);
 				Team team_ = this.registerTeam(score);
 				team_.setPrefix(line_);
 				score--;
@@ -460,18 +443,17 @@ public class PlayerInfo {
 
 	public void updateScoreBoard() {
 		if (this.board == null) {
-			this.board = Bukkit.getScoreboardManager().getNewScoreboard();
-		}
-
-		Objective objective = this.board.getObjective(DisplaySlot.SIDEBAR);
-		if (objective == null) {
-			objective = this.board.registerNewObjective("sidebar", "dummy", "Scoreboard");
-			objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+			return;
 		}
 
 		boolean isLegacy = isLegacyClient();
 		int maxLineLength = isLegacy ? 16 : 64;
 		int maxLines = isLegacy ? 15 : 16;
+
+		boolean isCommsDisabled = false;
+		if (this.getArena() != null) {
+			isCommsDisabled = this.getArena().isSabotageActive(SabotageType.COMMUNICATIONS);
+		}
 
 		Set<Team> teamsToRemove = new HashSet<>(this.board.getTeams());
 
@@ -483,30 +465,30 @@ public class PlayerInfo {
 			if (score <= 0) break;
 
 			if (line.contains("%tasks%")) {
-				if (this.getArena() != null && !this.getArena().getSabotageManager().isSabotageActive(SabotageType.COMMUNICATIONS)) {
+				if (!isCommsDisabled && this.getArena() != null) {
 					for (TaskPlayer tp : this.getArena().getTasksManager().getTasksForPlayer(this.getPlayer())) {
 						if (score <= 0) break;
 						String line_ = messagesManager.getScoreboardTaskLine(this.getArena(), tp);
-						updateTeamLine(score, line_, isLegacy, maxLineLength, objective);
+						updateTeamLine(score, line_, isLegacy, maxLineLength);
 						teamsToRemove.remove(this.board.getTeam("team" + score));
 						score--;
 					}
 				} else {
 					String line_ = ChatColor.RED + "" + ChatColor.BOLD + Main.getMessagesManager().getSabotageTitle(SabotageType.COMMUNICATIONS);
-					updateTeamLine(score, line_, isLegacy, maxLineLength, objective);
+					updateTeamLine(score, line_, isLegacy, maxLineLength);
 					teamsToRemove.remove(this.board.getTeam("team" + score));
 					score--;
 				}
 			} else {
 				String line_ = messagesManager.getScoreboardLine(this.getScoreBoardKey(), lines.size(), this);
-				updateTeamLine(score, line_, isLegacy, maxLineLength, objective);
+				updateTeamLine(score, line_, isLegacy, maxLineLength);
 				teamsToRemove.remove(this.board.getTeam("team" + score));
 				score--;
 			}
 			lines.add(line);
 		}
 
-		// Remove teams that were not updated
+		// Remova as equipes que não foram atualizadas
 		for (Team team : teamsToRemove) {
 			if (team != null && team.getName().startsWith("team")) {
 				for (String entry : new ArrayList<>(team.getEntries())) {
@@ -521,82 +503,61 @@ public class PlayerInfo {
 			this.activeKey = this.getScoreBoardKey();
 			this.updateScoreBoard();
 		}
-
-		this.getPlayer().setScoreboard(this.board);
-	}
-
-	public void resetScoreboard() {
-		this.board = Bukkit.getScoreboardManager().getNewScoreboard();
-		this.getPlayer().setScoreboard(this.board);
-		this.activeKey = "";
 	}
 
 
-	public void updatePlayerVisibility() {
-		Player player = this.getPlayer();
-		for (Player otherPlayer : Bukkit.getOnlinePlayers()) {
-			if (player.equals(otherPlayer)) continue;
 
-			boolean canSee = canPlayerSeeOther(player, otherPlayer);
-			if (canSee) {
-				player.showPlayer(Main.getPlugin(), otherPlayer);
-				otherPlayer.showPlayer(Main.getPlugin(), player);
-			} else {
-				player.hidePlayer(Main.getPlugin(), otherPlayer);
-				otherPlayer.hidePlayer(Main.getPlugin(), player);
-			}
+	boolean isLegacyClient() {
+		try {
+			Class<?> viaAPIClass = Class.forName("com.viaversion.viaversion.api.Via");
+			Object viaAPI = viaAPIClass.getMethod("getAPI").invoke(null);
+			int protocolVersion = (int) viaAPI.getClass().getMethod("getPlayerVersion", UUID.class).invoke(viaAPI, this.player.getUniqueId());
+			return protocolVersion < 393; // 393 é o protocolo do Minecraft 1.13
+		} catch (Exception e) {
+			e.printStackTrace();
+			// Se não conseguir determinar a versão, assume que não é legado
+			return false;
 		}
 	}
 
-	private boolean canPlayerSeeOther(Player player, Player otherPlayer) {
-		PlayerInfo playerInfo = Main.getPlayersManager().getPlayerInfo(player);
-		PlayerInfo otherPlayerInfo = Main.getPlayersManager().getPlayerInfo(otherPlayer);
-		return !playerInfo.isLegacyClient() || otherPlayerInfo.isLegacyClient();
-	}
-	private boolean isCommsDisabled() {
-		if (this.arena != null && this.arena.getGameState() != null && this.arena.getSabotageManager() != null) {
-			if ((this.arena.getGameState() == GameState.RUNNING || this.arena.getGameState() == GameState.FINISHING) &&
-					this.arena.getSabotageManager().getIsSabotageActive() &&
-					this.arena.getSabotageManager().getActiveSabotage() != null &&
-					this.arena.getSabotageManager().getActiveSabotage().getType() == SabotageType.COMMUNICATIONS) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private void updateTeamLine(int score, String line, boolean isLegacy, int maxLineLength, Objective objective) {
-		if (objective == null) return;
-
+	private void updateTeamLine(int score, String line, boolean isLegacy, int maxLineLength) {
 		Team team = this.board.getTeam("team" + score);
 		if (team == null) {
 			team = this.board.registerNewTeam("team" + score);
 		}
 
-		String prefix = line;
-		String suffix = "";
-		if (line.length() > maxLineLength) {
-			prefix = line.substring(0, maxLineLength);
-			if (!isLegacy) {
-				suffix = line.substring(maxLineLength);
-			}
-		}
-		team.setPrefix(prefix);
-		if (!isLegacy) {
-			team.setSuffix(suffix);
-		}
 		String entry = ChatColor.values()[score].toString();
+
+		if (isLegacy) {
+			if (line.length() > 16) {
+				team.setPrefix(line.substring(0, 16));
+				String suffix = ChatColor.getLastColors(line.substring(0, 16)) + line.substring(16);
+				team.setSuffix(suffix.length() > 16 ? suffix.substring(0, 16) : suffix);
+			} else {
+				team.setPrefix(line);
+				team.setSuffix("");
+			}
+		} else {
+			team.setPrefix(line);
+			team.setSuffix("");
+		}
+
 		if (!team.hasEntry(entry)) {
 			team.addEntry(entry);
 		}
-		objective.getScore(entry).setScore(score);
+		this.board.getObjective(DisplaySlot.SIDEBAR).getScore(entry).setScore(score);
 	}
 
-	private String getUniqueColorCode(int score) {
-		ChatColor[] colors = ChatColor.values();
-		return colors[score % colors.length].toString();
-	}
 
+
+
+	private String truncateLine(String line, boolean isLegacy) {
+		if (isLegacy) {
+			return line.length() > 32 ? line.substring(0, 32) : line;
+		} else {
+			return line.length() > 64 ? line.substring(0, 64) : line;
+		}
+	}
 
 	private String getScoreBoardKey() {
 		if (this.getIsIngame()) {
