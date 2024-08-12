@@ -41,7 +41,7 @@ public class PlayerInfo {
 	private Boolean isInGame = false;
 	private Boolean isGhost = false;
 	private RoleType role = null;
-	
+
 	private ColorInfo color;
 	private ColorInfo preferredColor = null;
 	private Integer meetingsLeft = 1;
@@ -459,17 +459,16 @@ public class PlayerInfo {
 	}
 
 	public void updateScoreBoard() {
-		if (this.board == null) {
-			return;
+		if (this.board == null || this.board.getObjective(DisplaySlot.SIDEBAR) == null) {
+			this.board = Bukkit.getScoreboardManager().getNewScoreboard();
+			Objective objective = this.board.registerNewObjective("sidebar", "dummy", "Scoreboard");
+			objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 		}
 
 		boolean isLegacy = isLegacyClient();
 		int maxLineLength = isLegacy ? 16 : 64;
 		int maxLines = isLegacy ? 15 : 16;
 
-		boolean isCommsDisabled = checkCommsDisabled();
-
-		// Crie uma cópia das equipes para evitar ConcurrentModificationException
 		Set<Team> teamsToRemove = new HashSet<>(this.board.getTeams());
 
 		ArrayList<String> lines = new ArrayList<>();
@@ -480,7 +479,7 @@ public class PlayerInfo {
 			if (score <= 0) break;
 
 			if (line.contains("%tasks%")) {
-				if (!isCommsDisabled) {
+				if (!isCommsDisabled()) {
 					for (TaskPlayer tp : this.getArena().getTasksManager().getTasksForPlayer(this.getPlayer())) {
 						if (score <= 0) break;
 						String line_ = messagesManager.getScoreboardTaskLine(this.getArena(), tp);
@@ -505,27 +504,61 @@ public class PlayerInfo {
 
 		// Remova as equipes que não foram atualizadas
 		for (Team team : teamsToRemove) {
-			if (team.getName().startsWith("team")) {
-				for (String entry : new ArrayList<>(team.getEntries())) {
-					team.removeEntry(entry);
-					this.board.resetScores(entry);
+			if (team != null && team.getName().startsWith("team")) {
+				try {
+					for (String entry : new ArrayList<>(team.getEntries())) {
+						team.removeEntry(entry);
+						this.board.resetScores(entry);
+					}
+					team.unregister();
+				} catch (IllegalStateException e) {
+					// A equipe já foi desregistrada, ignore
 				}
-				team.unregister();
 			}
 		}
-
+		this.getPlayer().setScoreboard(this.board);
 		if (!this.getScoreBoardKey().equals(this.activeKey)) {
 			this.activeKey = this.getScoreBoardKey();
 			this.updateScoreBoard();
 		}
 	}
 
-	private boolean checkCommsDisabled() {
-		if (this.getIsIngame() &&
-				(this.arena.getGameState() == GameState.RUNNING || this.arena.getGameState() == GameState.FINISHING) &&
-				this.arena.getSabotageManager().getIsSabotageActive() &&
-				this.arena.getSabotageManager().getActiveSabotage().getType() == SabotageType.COMMUNICATIONS) {
-			return true;
+	public void resetScoreboard() {
+		this.board = Bukkit.getScoreboardManager().getNewScoreboard();
+		this.getPlayer().setScoreboard(this.board);
+		this.activeKey = "";
+	}
+
+
+	public void updatePlayerVisibility() {
+		Player player = this.getPlayer();
+		for (Player otherPlayer : Bukkit.getOnlinePlayers()) {
+			if (player.equals(otherPlayer)) continue;
+
+			boolean canSee = canPlayerSeeOther(player, otherPlayer);
+			if (canSee) {
+				player.showPlayer(Main.getPlugin(), otherPlayer);
+				otherPlayer.showPlayer(Main.getPlugin(), player);
+			} else {
+				player.hidePlayer(Main.getPlugin(), otherPlayer);
+				otherPlayer.hidePlayer(Main.getPlugin(), player);
+			}
+		}
+	}
+
+	private boolean canPlayerSeeOther(Player player, Player otherPlayer) {
+		PlayerInfo playerInfo = Main.getPlayersManager().getPlayerInfo(player);
+		PlayerInfo otherPlayerInfo = Main.getPlayersManager().getPlayerInfo(otherPlayer);
+		return !playerInfo.isLegacyClient() || otherPlayerInfo.isLegacyClient();
+	}
+	private boolean isCommsDisabled() {
+		if (this.arena != null && this.arena.getGameState() != null && this.arena.getSabotageManager() != null) {
+			if ((this.arena.getGameState() == GameState.RUNNING || this.arena.getGameState() == GameState.FINISHING) &&
+					this.arena.getSabotageManager().getIsSabotageActive() &&
+					this.arena.getSabotageManager().getActiveSabotage() != null &&
+					this.arena.getSabotageManager().getActiveSabotage().getType() == SabotageType.COMMUNICATIONS) {
+				return true;
+			}
 		}
 		return false;
 	}

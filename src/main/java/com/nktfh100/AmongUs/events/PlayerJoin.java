@@ -19,11 +19,17 @@ public class PlayerJoin implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent ev) {
         Player player = ev.getPlayer();
-        if (playersManager.getPlayerInfo(ev.getPlayer()) == null) {//players.get(ev.getPlayer().getUniqueId().toString()) == null) {
-            playersManager.addPlayer(ev.getPlayer());
+        PlayerInfo playerInfo;
+
+        if (playersManager.getPlayerInfo(player) == null) {
+            playerInfo = playersManager.addPlayer(player);
         } else {
-            playersManager.getPlayerInfo(ev.getPlayer())._setPlayer(player);
+            playerInfo = playersManager.getPlayerInfo(player);
+            playerInfo._setPlayer(player);
         }
+        playerInfo.resetScoreboard();
+        playerInfo.updatePlayerVisibility();
+        playerInfo.updateScoreBoard();
         if (Main.getConfigManager().getMysql_enabled()) {
             playersManager.getPlayerInfo(player).getStatsManager().mysql_registerPlayer(true);
         } else {
