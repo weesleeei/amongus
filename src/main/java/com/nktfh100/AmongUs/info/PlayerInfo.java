@@ -1,8 +1,6 @@
 package com.nktfh100.AmongUs.info;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.UUID;
+import java.util.*;
 import java.util.logging.Level;
 
 import com.nktfh100.AmongUs.holograms.ImposterHologram;
@@ -167,6 +165,19 @@ public class PlayerInfo {
 		this.player.setScoreboard(this.board);
 		this.setScoreBoard();
 	}
+	private boolean isLegacyClient() {
+		try {
+			Class<?> viaAPIClass = Class.forName("com.viaversion.viaversion.api.Via");
+			Object viaAPI = viaAPIClass.getMethod("getAPI").invoke(null);
+			int protocolVersion = (int) viaAPI.getClass().getMethod("getPlayerVersion", UUID.class).invoke(viaAPI, this.player.getUniqueId());
+			return protocolVersion < 393; // 393 é o protocolo do Minecraft 1.13
+		} catch (Exception e) {
+			e.printStackTrace();
+			// Se não conseguir determinar a versão, assume que não é legado
+			return false;
+		}
+	}
+
 
 	public String getCustomName() {
 		if (this.color != null && this.arena != null) {
@@ -451,75 +462,105 @@ public class PlayerInfo {
 		if (this.board == null) {
 			return;
 		}
-		Boolean isCommsDisabled = false;
-		if (this.getIsIngame()) {
-			if (this.arena.getGameState() == GameState.RUNNING || this.arena.getGameState() == GameState.FINISHING) {
-				if (this.arena.getSabotageManager().getIsSabotageActive()) {
-					if (this.arena.getSabotageManager().getActiveSabotage().getType() == SabotageType.COMMUNICATIONS) {
-						isCommsDisabled = true;
-						for (Team team : this.board.getTeams()) {
-							if (team.getName().startsWith("team")) {
-								for (String entry : team.getEntries()) {
-									team.removeEntry(entry);
-									this.board.resetScores(entry);
-								}
-								team.unregister();
-							}
-						}
-					}
-				}
-			}
-		}
 
-		ArrayList<String> lines = new ArrayList<String>();
-		int i = 0;
-		int score = 99;
+		boolean isLegacy = isLegacyClient();
+		int maxLineLength = isLegacy ? 16 : 64;
+		int maxLines = isLegacy ? 15 : 16;
+
+		boolean isCommsDisabled = checkCommsDisabled();
+
+		// Crie uma cópia das equipes para evitar ConcurrentModificationException
+		Set<Team> teamsToRemove = new HashSet<>(this.board.getTeams());
+
+		ArrayList<String> lines = new ArrayList<>();
+		int score = maxLines;
 		MessagesManager messagesManager = Main.getMessagesManager();
+
 		for (String line : messagesManager.getScoreBoardLines(this.getScoreBoardKey())) {
+			if (score <= 0) break;
+
 			if (line.contains("%tasks%")) {
 				if (!isCommsDisabled) {
 					for (TaskPlayer tp : this.getArena().getTasksManager().getTasksForPlayer(this.getPlayer())) {
+						if (score <= 0) break;
 						String line_ = messagesManager.getScoreboardTaskLine(this.getArena(), tp);
-						if (this.board.getTeam("team" + score) == null) {
-							this.registerTeam(score);
-						}
-						this.board.getTeam("team" + score).setPrefix(line_);
+						updateTeamLine(score, line_, isLegacy, maxLineLength);
+						teamsToRemove.remove(this.board.getTeam("team" + score));
 						score--;
 					}
 				} else {
 					String line_ = ChatColor.RED + "" + ChatColor.BOLD + Main.getMessagesManager().getSabotageTitle(SabotageType.COMMUNICATIONS);
-					if (this.board.getTeam("team" + score) == null) {
-						this.registerTeam(score);
-					}
-					this.board.getTeam("team" + score).setPrefix(line_);
+					updateTeamLine(score, line_, isLegacy, maxLineLength);
+					teamsToRemove.remove(this.board.getTeam("team" + score));
 					score--;
 				}
-				i++;
 			} else {
-				String line_ = messagesManager.getScoreboardLine(this.getScoreBoardKey(), i, this);
-				if (this.board.getTeam("team" + score) == null) {
-					this.registerTeam(score);
-				}
-				this.board.getTeam("team" + score).setPrefix(line_);
+				String line_ = messagesManager.getScoreboardLine(this.getScoreBoardKey(), lines.size(), this);
+				updateTeamLine(score, line_, isLegacy, maxLineLength);
+				teamsToRemove.remove(this.board.getTeam("team" + score));
 				score--;
-				i++;
+			}
+			lines.add(line);
+		}
+
+		// Remova as equipes que não foram atualizadas
+		for (Team team : teamsToRemove) {
+			if (team.getName().startsWith("team")) {
+				for (String entry : new ArrayList<>(team.getEntries())) {
+					team.removeEntry(entry);
+					this.board.resetScores(entry);
+				}
+				team.unregister();
 			}
 		}
 
-		if (activeKey != this.getScoreBoardKey()) {
-			for (Team team : this.board.getTeams()) {
-				if (team.getName().startsWith("team")) {
-					for (String entry : team.getEntries()) {
-						team.removeEntry(entry);
-						this.board.resetScores(entry);
-					}
-					team.unregister();
-				}
-			}
+		if (!this.getScoreBoardKey().equals(this.activeKey)) {
 			this.activeKey = this.getScoreBoardKey();
 			this.updateScoreBoard();
 		}
 	}
+
+	private boolean checkCommsDisabled() {
+		if (this.getIsIngame() &&
+				(this.arena.getGameState() == GameState.RUNNING || this.arena.getGameState() == GameState.FINISHING) &&
+				this.arena.getSabotageManager().getIsSabotageActive() &&
+				this.arena.getSabotageManager().getActiveSabotage().getType() == SabotageType.COMMUNICATIONS) {
+			return true;
+		}
+		return false;
+	}
+
+	private void updateTeamLine(int score, String line, boolean isLegacy, int maxLineLength) {
+		Team team = this.board.getTeam("team" + score);
+		if (team == null) {
+			team = this.board.registerNewTeam("team" + score);
+		}
+		String entry = getUniqueColorCode(score);
+
+		if (isLegacy) {
+			if (line.length() > 16) {
+				String prefix = line.substring(0, 16);
+				String suffix = ChatColor.getLastColors(prefix) + line.substring(16);
+				team.setPrefix(prefix);
+				team.setSuffix(suffix.length() > 16 ? suffix.substring(0, 16) : suffix);
+			} else {
+				team.setPrefix(line);
+				team.setSuffix("");
+			}
+		} else {
+			team.setPrefix(line.length() > maxLineLength ? line.substring(0, maxLineLength) : line);
+			team.setSuffix("");
+		}
+
+		team.addEntry(entry);
+		this.objective.getScore(entry).setScore(score);
+	}
+
+	private String getUniqueColorCode(int score) {
+		ChatColor[] colors = ChatColor.values();
+		return colors[score % colors.length].toString();
+	}
+
 
 	private String getScoreBoardKey() {
 		if (this.getIsIngame()) {

@@ -1,6 +1,7 @@
 package com.nktfh100.AmongUs.utils;
 
 import java.util.*;
+import java.util.logging.Level;
 
 import com.comphenix.protocol.wrappers.*;
 import com.google.common.collect.Lists;
@@ -184,7 +185,17 @@ public class Packets {
 
 	public static PacketContainer DESTROY_ENTITY(int entityId) {
 		PacketContainer packet = new PacketContainer(PacketType.Play.Server.ENTITY_DESTROY);
-		packet.getIntegerArrays().write(0, new int[]{entityId});
+
+		// Verificar o tamanho do StructureModifier
+		int size = packet.getIntegerArrays().size();
+
+		// Garantir que o índice 0 está dentro dos limites
+		if (size > 0) {
+			packet.getIntegerArrays().write(0, new int[]{entityId});
+		} else {
+			Logger.log(Level.WARNING, "Field index 0 is out of bounds for length " + size);
+		}
+
 		return packet;
 	}
 
@@ -231,8 +242,15 @@ public class Packets {
 		packet.getDoubles().write(0, loc.getX());
 		packet.getDoubles().write(1, loc.getY()); // location
 		packet.getDoubles().write(2, loc.getZ());
-		packet.getIntegers().write(4, 0); // yaw & pitch ?
-		packet.getIntegers().write(5, 0);
+
+		// Verificar o tamanho do StructureModifier
+		int size = packet.getIntegers().size();
+
+		// Garantir que o índice 5 está dentro dos limites
+		if (size > 5) {
+			packet.getIntegers().write(4, 0); // yaw
+			packet.getIntegers().write(5, 0); // pitch
+		}
 
 		return packet;
 	}
