@@ -212,17 +212,47 @@ public class Arena {
 		}
 	}
 	public void updatePlayerVisibility() {
-		for (PlayerInfo playerInfo : this.getPlayersInfo()) {
-			Player player = playerInfo.getPlayer();
-			for (PlayerInfo otherPlayerInfo : this.getPlayersInfo()) {
-				if (playerInfo.equals(otherPlayerInfo)) continue;
+		for (PlayerInfo pInfo : this.getPlayersInfo()) {
+			Player player = pInfo.getPlayer();
+			boolean isLegacy = pInfo.isLegacyClient();
 
-				Player otherPlayer = otherPlayerInfo.getPlayer();
-				player.showPlayer(Main.getPlugin(), otherPlayer);
-				otherPlayer.showPlayer(Main.getPlugin(), player);
+			for (PlayerInfo otherPInfo : this.getPlayersInfo()) {
+				if (pInfo.equals(otherPInfo)) continue;
+
+				Player otherPlayer = otherPInfo.getPlayer();
+				boolean otherIsLegacy = otherPInfo.isLegacyClient();
+
+				if (pInfo.isDead() || otherPInfo.isDead()) {
+					if (pInfo.isDead() && otherPInfo.isDead()) {
+						// Jogadores mortos podem ver outros jogadores mortos
+						player.showPlayer(Main.getPlugin(), otherPlayer);
+						otherPlayer.showPlayer(Main.getPlugin(), player);
+					} else {
+						// Jogadores vivos não podem ver jogadores mortos e vice-versa
+						player.hidePlayer(Main.getPlugin(), otherPlayer);
+						otherPlayer.hidePlayer(Main.getPlugin(), player);
+					}
+				} else {
+					// Lógica para jogadores vivos
+					if (isLegacy) {
+						// Cliente legacy (1.8) vendo outros jogadores
+						player.showPlayer(Main.getPlugin(), otherPlayer);
+						// Remova qualquer item da mão secundária para clientes legacy
+						if (!otherIsLegacy) {
+							Bukkit.getScheduler().runTask(Main.getPlugin(), () -> {
+								player.sendBlockChange(otherPlayer.getLocation(), otherPlayer.getLocation().getBlock().getType(), (byte) 0);
+							});
+						}
+					} else {
+						// Cliente moderno vendo outros jogadores
+						player.showPlayer(Main.getPlugin(), otherPlayer);
+					}
+				}
 			}
 		}
 	}
+
+
 
 	public void giveGameInventory(PlayerInfo pInfo) {
 		pInfo.getPlayer().getInventory().clear();
@@ -1288,7 +1318,6 @@ public class Arena {
 					arena_.setGameTimerActive(gameTimer_);
 					if (gameTimer_ <= 0) {
 						arena_.startGame();
-						updatePlayerVisibility();
 						this.cancel();
 						return;
 					}
@@ -1442,8 +1471,6 @@ public class Arena {
 				ItemInfo useItem = Main.getItemsManager().getItem("use").getItem();
 				pInfo.getPlayer().getInventory().setItem(useItem.getSlot(), useItem.getItem());
 				this.getVisibilityManager().playerMoved(pInfo, this.playersSpawns.get(si));
-				updatePlayerVisibility();
-				Bukkit.getScheduler().runTaskTimer(Main.getPlugin(), this::updatePlayerVisibility, 20L, 100L);
 				pInfo.setFakePlayer(new FakePlayer(this, pInfo));
 
 				PacketContainer packet = Packets.UPDATE_DISPLAY_NAME(player.getUniqueId(), player.getName(), pInfo.getCustomName());
@@ -1472,6 +1499,15 @@ public class Arena {
 				pInfo.sendTitle(Main.getMessagesManager().getGameMsg(key + "Title" + (this.numImposters == 1 ? "1" : "") + pInfo.getRole().getName(), this, placeholders, pInfo.getPlayer()),
 						Main.getMessagesManager().getGameMsg(key + "SubTitle" + (this.numImposters == 1 ? "1" : ""), this, placeholders, pInfo.getPlayer()));
 
+				for (PlayerInfo pInfo2 : this.getPlayersInfo()) {
+					Player player = pInfo2.getPlayer();
+					for (PlayerInfo otherPInfo : this.getPlayersInfo()) {
+						if (!pInfo2.equals(otherPInfo)) {
+							Player otherPlayer = otherPInfo.getPlayer();
+							player.showPlayer(Main.getPlugin(), otherPlayer);
+						}
+					}
+				}
 				// teams
 				for (PlayerInfo pInfo1 : this.getPlayersInfo()) {
 					if (pInfo.getIsImposter()) {
@@ -1543,6 +1579,25 @@ public class Arena {
 			this.updateSigns();
 			Main.getArenaManager().updateArenaSelectorInv();
 		}
+		Bukkit.getScheduler().runTaskTimer(Main.getPlugin(), new Runnable() {
+			public void run() {
+				if (getGameState() != GameState.RUNNING) {
+					return;
+				}
+				for (PlayerInfo pInfo : getPlayersInfo()) {
+					if (pInfo.isDead()) {
+						Player player = pInfo.getPlayer();
+						for (PlayerInfo otherPInfo : getPlayersInfo()) {
+							if (!pInfo.equals(otherPInfo) && otherPInfo.isDead()) {
+								Player otherPlayer = otherPInfo.getPlayer();
+								player.showPlayer(Main.getPlugin(), otherPlayer);
+								otherPlayer.showPlayer(Main.getPlugin(), player);
+							}
+						}
+					}
+				}
+			}
+		}, 20L, 20L);
 	}
 
 	public void endGame(Boolean isReload, GameEndReasons reason, GameEndWinners winners) {
@@ -1761,7 +1816,6 @@ public class Arena {
 			}
 			this.getVisibilityManager().resetPlayersHidden(pInfo);
 			si++;
-			updatePlayerVisibility();
 		}
 		Arena arena = this;
 

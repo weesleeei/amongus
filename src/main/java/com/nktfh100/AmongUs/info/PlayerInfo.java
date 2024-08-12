@@ -520,6 +520,16 @@ public class PlayerInfo {
 		}
 	}
 
+	// Outros atributos e métodos da classe PlayerInfo
+
+	public boolean getIsGhost() {
+		return this.isGhost;
+	}
+
+	public void setIsGhost(boolean isGhost) {
+		this.isGhost = isGhost;
+	}
+
 	private void updateTeamLine(int score, String line, boolean isLegacy, int maxLineLength) {
 		Team team = this.board.getTeam("team" + score);
 		if (team == null) {
@@ -1231,5 +1241,8 @@ public class PlayerInfo {
 
 	public void setRole(RoleType role) {
 		this.role = role;
+	}
+	public boolean isDead() {
+		return this.isGhost;
 	}
 }
