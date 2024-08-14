@@ -51,7 +51,7 @@ public class PlayerInfo {
 	private Boolean canReportBody = false;
 	private Integer vision = 10;
 
-	private Boolean isMapInOffHand = true;
+	private Boolean isMapInOffHand = false;
 
 	private Boolean isInVent = false;
 	private VentGroup ventGroup = null;

@@ -57,9 +57,9 @@ public class Renderer extends MapRenderer {
 		}
 		return null;
 	}
-
+	private Location previousLocation = null;
 	private Boolean didSet = false;
-
+	private static final double LIMIT = 10.0;
 	@Override
 	public void render(MapView mapView, MapCanvas mapCanvas, Player player) {
 		PlayerInfo pInfo = Main.getPlayersManager().getPlayerInfo(player);
@@ -68,12 +68,19 @@ public class Renderer extends MapRenderer {
 			return;
 		}
 
-		Integer centerX;
-		Integer centerZ;
+		Location loc_ = player.getLocation();
+		Integer centerX = loc_.getBlockX();
+		Integer centerZ = loc_.getBlockZ();
+		mapView.setCenterX(centerX);
+		mapView.setCenterZ(centerZ);
+
+		Location currentLocation = player.getLocation();
+		// Verifique se o jogador se moveu além do limite
+		if (previousLocation != null && previousLocation.distance(currentLocation) < LIMIT) {
+			return;
+		}
+
 		if (pInfo.getArena().getMoveMapWithPlayer()) {
-			Location loc_ = player.getLocation();
-			centerX = loc_.getBlockX();
-			centerZ = loc_.getBlockZ();
 			mapView.setCenterX(centerX);
 			mapView.setCenterZ(centerZ);
 		} else {
@@ -102,34 +109,41 @@ public class Renderer extends MapRenderer {
 				int taskX = task.getLocation().getBlockX();
 				int taskZ = task.getLocation().getBlockZ();
 
+				int playerX = player.getLocation().getBlockX();
+				int playerZ = player.getLocation().getBlockZ();
+
 				int mapX = 0;
 				int mapY = 0;
 
-				int difX = Math.abs(taskX - centerX);
-				int difZ = Math.abs(taskZ - centerZ);
+				int difX = Math.abs(taskX - playerX);
+				int difZ = Math.abs(taskZ - playerZ);
+
 				String label = "";
+
 				if (mapView.getScale() == Scale.CLOSEST) {
-					difX = difX * 2;
-					difZ = difZ * 2;
+					difX = difX * 4;
+					difZ = difZ * 4;
+
 					if (difX > 126) { // 256 / 2
 						difX = 126;
 						difX = difX - 5;
 						// label = null;
 					}
+
 					if (difZ > 126) {
 						difZ = 126;
 						difZ = difZ - 5;
 						// label = null;
 					}
-
 				}
-				if (taskX > centerX) {
+
+				if (taskX > playerX) {
 					mapX = mapX + difX;
 				} else {
 					mapX = mapX - difX;
 				}
 
-				if (taskZ > centerZ) {
+				if (taskZ > playerZ) {
 					mapY = mapY + difZ;
 				} else {
 					mapY = mapY - difZ;
@@ -156,7 +170,7 @@ public class Renderer extends MapRenderer {
 
 				int difX = Math.abs(locX - centerX);
 				int difZ = Math.abs(locZ - centerZ);
-				if (mapView.getScale() == Scale.CLOSEST) {
+				if (mapView.getScale() == Scale.FARTHEST) {
 					difX = difX * 2;
 					difZ = difZ * 2;
 					// if its out of view
@@ -190,7 +204,6 @@ public class Renderer extends MapRenderer {
 			playerX = centerX;
 			playerZ = centerZ;
 		} else {
-			Location loc_ = player.getLocation();
 			playerX = loc_.getBlockX();
 			playerZ = loc_.getBlockZ();
 		}
@@ -225,7 +238,7 @@ public class Renderer extends MapRenderer {
 			mapY = mapY - difZ;
 		}
 
-		cursors.addCursor(new MapCursor((byte) (mapX), (byte) (mapY), (byte) getCardinalDirection(player), Type.BLUE_POINTER, true));
+		cursors.addCursor(new MapCursor((byte) (0), (byte) (0), (byte) getCardinalDirection(player), Type.BLUE_POINTER, true));
 
 //			for (PlayerInfo pInfo1 : pInfo.getArena().getPlayersInfo()) {
 //				Type type_ = Type.GREEN_POINTER;
